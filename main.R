@@ -92,3 +92,59 @@ fancyRpartPlot(fit)
 pred <- predict(fit, test, type = "class")
 submit <- data.frame(PassengerId = test$PassengerId, Survived = pred)
 write.csv(submit, file = "decisiontree.csv", row.names = FALSE)
+
+# ----
+
+# Feature Engineering
+
+# Import training and testing datasets
+train <- read.csv("train.csv")
+test <- read.csv("test.csv")
+
+# Combine traing and testing datasets
+test$Survived <- NA
+combi <- rbind(train, test)
+
+# Convert Name from factor to character
+combi$Name <- as.character(combi$Name)
+
+# Extract title for each passenger
+combi$Title <- sapply(combi$Name, FUN = function(x) { strsplit(x, split = '[,.]')[[1]][2] })
+combi$Title <- sub(' ', '', combi$Title) # remove space at the beginning
+
+# Inspect titles
+table(combi$Title)
+
+# Combine some closely related titles
+combi$Title[combi$Title %in% c('Mme', 'Mlle')] <- 'Mlle'
+combi$Title[combi$Title %in% c('Capt', 'Don', 'Major', 'Sir')] <- 'Sir'
+combi$Title[combi$Title %in% c('Dona', 'Lady', 'the Countess', 'Jonkheer')] <- 'Lady'
+combi$Title <- factor(combi$Title)
+
+# Create a new feature for family size. Just add the number of siblings,
+# spouses, parents and children the passenger had with them, and plus one for
+# their own existence
+combi$FamilySize <- combi$SibSp + combi$Parch + 1
+
+# Identify families
+combi$Surname <- sapply(combi$Name, FUN = function(x) { strsplit(x, split = '[,.]')[[1]][1] })
+combi$FamilyID <- paste(as.character(combi$FamilySize), combi$Surname, sep = "")
+combi$FamilyID[combi$FamilySize <= 2] <- 'Small'
+table(combi$FamilyID)
+famIDs <- data.frame(table(combi$FamilyID))
+famIDs <- famIDs[famIDs$Freq <= 2,]
+combi$FamilyID[combi$FamilyID %in% famIDs$Var1] <- 'Small'
+combi$FamilyID <- factor(combi$FamilyID)
+
+# Break combi apart
+train <- combi[1:891,]
+test <- combi[892:1309,]
+
+# Train decision tree
+fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID,
+             data = train, method = "class")
+
+# Submit decision tree predictions
+pred <- predict(fit, test, type = "class")
+submit <- data.frame(PassengerId = test$PassengerId, Survived = pred)
+write.csv(submit, file = "featureengineering.csv", row.names = FALSE)
