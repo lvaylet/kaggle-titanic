@@ -69,3 +69,26 @@ test$Survived[test$Sex == 'female' & test$Pclass == 3 & test$Fare >= 20] <- 0
 # Extract PassengerId and Survived for submission
 submit <- data.frame(PassengerId = test$PassengerId, Survived = test$Survived)
 write.csv(submit, file = "gender-class.csv", row.names = FALSE)
+
+# ----
+
+# Decision Trees
+library(rpart)
+
+# Train and inspect a ‘Recursive Partitioning and Regression Trees’ model that
+# uses the CART decision tree algorithm
+fit <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked, 
+             data = train, method = "class")
+plot(fit)
+text(fit)
+
+# Plot a nicer representation with fancyRpartPlot
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+fancyRpartPlot(fit)
+
+# Submit decision tree predictions
+pred <- predict(fit, test, type = "class")
+submit <- data.frame(PassengerId = test$PassengerId, Survived = pred)
+write.csv(submit, file = "decisiontree.csv", row.names = FALSE)
